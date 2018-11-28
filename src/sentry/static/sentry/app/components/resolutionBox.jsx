@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 
 import Avatar from 'app/components/avatar';
+import CommitLink from 'app/components/commitLink';
 import Version from 'app/components/version';
 import {t, tct} from 'app/locale';
 
@@ -43,6 +44,15 @@ export default class ResolutionBox extends React.Component {
             version={statusDetails.inRelease}
             orgId={params.orgId}
             projectId={params.projectId}
+          />
+        ),
+      });
+    } else if (!!statusDetails.inCommit) {
+      return tct('This issue has been marked as resolved by [commit]', {
+        commit: (
+          <CommitLink
+            commitId={statusDetails.inCommit.id}
+            repository={statusDetails.inCommit.repository}
           />
         ),
       });
