@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function
 import six
 
 from time import time
+from celery.task import current
 
 from sentry.api.serializers import serialize, app_platform_event
 from sentry.http import safe_urlopen
@@ -35,7 +36,14 @@ def process_resource_change(sender, instance_id, created):
     model = sender.__name__
     model = RESOURCE_RENAMES.get(model, model.lower())
 
-    instance = sender.objects.get(id=instance_id)
+    # We may run into a race condition where this task executes before the
+    # transaction that creates the Group has committed.
+    try:
+        instance = sender.objects.get(id=instance_id)
+    except sender.DoesNotExist as e:
+        # Explicitly requeue the task, so we don't report this to Sentry until
+        # we hit the max number of retries.
+        return current.retry(exc=e)
 
     event = 'created' if created else 'updated'
     action = u'{}.{}'.format(model, event)
