@@ -144,3 +144,29 @@ class OrganizationTagKeyValuesTest(APITestCase, SnubaTestCase):
         assert response.status_code == 200, response.content
         assert [(val['value'], val['count'])
                 for val in response.data] == [('5.1.2', 1), ('4.1.2', 1), ('3.1.2', 2)]
+
+    def test_array_column(self):
+        user = self.create_user()
+        org = self.create_organization()
+        team = self.create_team(organization=org)
+        self.create_member(organization=org, user=user, teams=[team])
+
+        self.login_as(user=user)
+
+        project = self.create_project(organization=org, teams=[team])
+        group = self.create_group(project=project)
+
+        self.create_event('a' * 32, group=group, datetime=self.day_ago)
+        self.create_event('b' * 32, group=group, datetime=self.min_ago)
+        self.create_event('c' * 32, group=group, datetime=self.day_ago)
+
+        url = reverse(
+            'sentry-api-0-organization-tagkey-values',
+            kwargs={
+                'organization_slug': org.slug,
+                'key': 'error.type',
+            }
+        )
+
+        response = self.client.get(url, format='json')
+        assert response.status_code == 200, response.content
